@@ -1,0 +1,23 @@
+AUDIO FOLDER STRUCTURE
+======================
+
+Drop your .mp3 files into these exact subfolders:
+
+1. Assets/Audio/Gehlee/ (Light Mode)
+   - song1.mp3       (Background song 1)
+   - song2.mp3       (Background song 2)
+   - song3.mp3       (Background song 3)
+   - voice1.mp3      (Theme switch voice clip 1 - or gehlee.mp3)
+   - voice2.mp3      (Optional theme switch voice clip 2)
+   - voice3.mp3      (Optional theme switch voice clip 3)
+
+2. Assets/Audio/Jeo/ (Dark Mode)
+   - song1.mp3       (Background song 1)
+   - song2.mp3       (Background song 2)
+   - song3.mp3       (Background song 3)
+   - voice1.mp3      (Theme switch voice clip 1 - or jeo.mp3)
+   - voice2.mp3      (Optional theme switch voice clip 2)
+   - voice3.mp3      (Optional theme switch voice clip 3)
+
+3. Assets/Audio/SFX/ (Calculator Button Clicks)
+   - click.mp3       (Button click sound)

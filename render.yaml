@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: dsa-advanced-calculator
+    runtime: docker
+    plan: free
