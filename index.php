@@ -1,19 +1,46 @@
 <?php
-// Button definitions: [label shown, text inserted into the formula]
-$fnKeys = [
-    ['⌊x⌋', 'floor('], ['⌈x⌉', 'ceil('], ['%', '%'], ['//', '//'], ['xʸ', '^'],
-    ['√x', '√('], ['∛x', '∛('], ['log x', 'log('], ['log₂ x', 'log2('], ['ln x', 'ln('],
-    ['n!', '!'], ['a!+b!', '5!+3!'], ['a!/b!', '6!/4!'], ['to', ' to '], ['=', '='],
-    ['Σ', 'Σ(i=1 to 5) i'], ['ΣΣ', 'ΣΣ(i=1 to 3, j=1 to 3) i*j'],
-    ['Π', 'Π(i=1 to 4) i'], ['ΠΠ', 'ΠΠ(i=1 to 3, j=1 to 3) i*j'], [',', ','],
+// ---------- Content definitions: [label shown, text inserted into the formula] ----------
+
+// Main keypad (4 columns). Third value = style (op / ctl), fourth = element id.
+$pad = [
+    ['AC', null, 'ctl', 'clr'], ['⌫', null, 'ctl', 'back'], ['(', '('], [')', ')'],
+    ['7', '7'], ['8', '8'], ['9', '9'], ['÷', '÷', 'op'],
+    ['4', '4'], ['5', '5'], ['6', '6'], ['×', '×', 'op'],
+    ['1', '1'], ['2', '2'], ['3', '3'], ['−', '-', 'op'],
+    ['0', '0'], ['.', '.'], [',', ','], ['+', '+', 'op'],
 ];
-$padKeys = [
-    ['7','7',null], ['8','8',null], ['9','9',null], ['⌫',null,'back'], ['AC',null,'clr'],
-    ['4','4',null], ['5','5',null], ['6','6',null], ['×','×',null],    ['÷','÷',null],
-    ['1','1',null], ['2','2',null], ['3','3',null], ['+','+',null],    ['−','-',null],
-    ['0','0',null], ['.','.',null], ['(','(',null], [')',')',null],    ['=',null,'eq'],
+
+// Tabs beside the keypad: id => [tab title, help text, buttons]
+$tabs = [
+    'basic' => ['Basic', 'Remainder, integer division, floor and ceiling.', [
+        ['%', '%'], ['//', '//'], ['⌊x⌋', 'floor('], ['⌈x⌉', 'ceil('],
+    ]],
+    'powers' => ['Powers & logs', 'Each button opens a bracket. Type the number, then close it with ).', [
+        ['xʸ', '^'], ['√x', '√('], ['∛x', '∛('], ['log x', 'log('], ['log₂ x', 'log2('], ['ln x', 'ln('],
+    ]],
+    'fact' => ['Factorials', 'n! adds a factorial sign. The other two insert examples you can edit.', [
+        ['n!', '!'], ['a! + b!', '5!+3!'], ['a! ÷ b!', '6!/4!'],
+    ]],
+    'sigma' => ['Σ & Π', 'Tap a template, then change the numbers. Σ adds terms, Π multiplies them. Double signs use two counters.', [
+        ['Σ', 'Σ(i=1 to 5) i'], ['ΣΣ', 'ΣΣ(i=1 to 3, j=1 to 3) i*j'],
+        ['Π', 'Π(i=1 to 4) i'], ['ΠΠ', 'ΠΠ(i=1 to 3, j=1 to 3) i*j'],
+        ['to', ' to '], ['=', '='],
+    ]],
 ];
+$varsHint  = 'Type a number for a letter, then tap the letter to add it to your formula.';
 $variables = ['A', 'B', 'C', 'D', 'x', 'y', 'c'];
+
+// Mascot stickers per theme (light = Gehlee, dark = Jeo)
+$art = [
+    'light' => ['name' => 'Gehlee', 'idle' => 'Assets/Gehlee.png', 'hi' => 'Assets/Gehlee_hi.png',
+                'jump' => 'Assets/Gehlee_jump.png', 'nom' => 'Assets/Gehlee_nom.png'],
+    'dark'  => ['name' => 'Jeo Ong', 'idle' => 'Assets/Jeo.png',    'hi' => 'Assets/Jeo_hi.png',
+                'jump' => 'Assets/Jeo_jump.png',    'nom' => 'Assets/Jeo_nom.png'],
+];
+
+$hints = ['vars' => $varsHint];
+foreach ($tabs as $id => $t) $hints[$id] = $t[1];
+
 $h = fn($s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 ?>
 <!DOCTYPE html>
@@ -22,456 +49,321 @@ $h = fn($s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DSA Advanced Calculator</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+<script>
+  // Apply the saved (or system) theme before first paint to avoid a flash.
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem('theme') ||
+      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  } catch (e) {}
+</script>
 <style>
-  /* ================= LIGHT MODE: CUTESY Y2K K-POP IDOL (Gehlee) ================= */
+  /* Light = Gehlee: K-pop / Y2K photocard.  Dark = Jeo: rockstar stage. */
   :root {
-    --bg: #ffd6ec;
-    --bg-pattern:
-      radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.85) 0%, transparent 32%),
-      radial-gradient(circle at 85% 20%, rgba(212, 187, 255, 0.65) 0%, transparent 38%),
-      radial-gradient(circle at 50% 85%, rgba(255, 179, 217, 0.7) 0%, transparent 45%),
-      linear-gradient(135deg, #ffe6f2 0%, #ffc2e2 48%, #f3c6ff 100%);
-    --bg-img: url('Assets/Gehlee.png');
-    --card: rgba(255, 246, 251, 0.92);
-    --card-border: #ff85c0;
-    --card-outer-glow: 0 18px 45px rgba(255, 77, 166, 0.25), 0 0 0 4px #ffffff, 0 0 0 7px #ffb3d9;
-    --text: #5c1638;
-    --muted: #b5487f;
-    --line: #ffadd2;
-    --btn: linear-gradient(180deg, #ffffff 0%, #ffe0f0 55%, #ffc2e0 100%);
-    --btn-fn: linear-gradient(180deg, #ffffff 0%, #f4e8ff 55%, #e2c7ff 100%);
-    --btn-shadow: 0 5px 0 #f062a6, 0 7px 14px rgba(255, 77, 166, 0.24), inset 0 2px 1px #ffffff;
-    --btn-active-shadow: 0 1px 0 #f062a6, 0 2px 6px rgba(255, 77, 166, 0.2);
-    --btn-radius: 999px;
-    --accent: linear-gradient(135deg, #ff70b8 0%, #ff3399 55%, #c44dff 100%);
-    --accent-solid: #ff3399;
-    --accent-shadow: 0 5px 0 #b80062, 0 8px 18px rgba(255, 51, 153, 0.4), inset 0 2px 2px rgba(255,255,255,0.6);
-    --accent2: linear-gradient(135deg, #ff85a2 0%, #ff477e 100%);
-    --on-accent: #ffffff;
-    --err: #d81b60;
-    --font-main: 'Fredoka', system-ui, Segoe UI, sans-serif;
-    --font-title: 'Fredoka', system-ui, sans-serif;
-    --input-bg: #ffffff;
-    --ans-bg: linear-gradient(135deg, #fff0f7 0%, #f7e8ff 100%);
-    --badge-bg: linear-gradient(90deg, #ff66b3, #b366ff);
-    --badge-text: #ffffff;
+    --font: ui-rounded, "Nunito", "Trebuchet MS", system-ui, sans-serif;
+    --head: ui-rounded, "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+    --upper: none; --ital: normal;
+    --bg1: #ffd3e8; --bg2: #e6c8ff;
+    --card-bg: linear-gradient(160deg, #fff, #ffeef8 55%, #f5e9ff);
+    --ring-bg: linear-gradient(135deg, #ff8cc6, #c79bff, #ffb3dc, #ff8cc6);
+    --text: #5a1740; --muted: #a2577f; --line: #ffc1de;
+    --accent: #ff3d95; --accent-ink: #fff; --accent-soft: #ffe1f0; --glow: rgba(255, 61, 149, .4);
+    --display: #fff7fd; --display-bg: linear-gradient(180deg, #f7ecff, #fde8f4); --panel: #fff0f8;
+    --key: linear-gradient(180deg, #fff, #efe0ff); --num: linear-gradient(180deg, #fff, #ffc9e1); --op: linear-gradient(180deg, #ffe4f2, #ffadd2);
+    --ctl-bg: linear-gradient(180deg, #ff94bc, #ff4f88); --ctl: #fff;
+    --eq-bg: linear-gradient(135deg, #ff4fa0, #b259ff);
+    --kb: #ff93c6; --ke: #ff7ab4; --kshine: rgba(255, 255, 255, .9);
+    --r: 999px; --rc: 28px;
+    --tag-bg: linear-gradient(90deg, #ff5fa2, #b86bff);
+    --err: #d6215b;
+    --shadow: 0 18px 50px rgba(220, 70, 150, .28);
+    --stage: radial-gradient(2px 2px at 12% 18%, #fff, #0000), radial-gradient(3px 3px at 82% 12%, #fff, #0000), radial-gradient(2px 2px at 28% 72%, #fff, #0000), radial-gradient(3px 3px at 90% 64%, #fff, #0000), radial-gradient(2px 2px at 60% 88%, #fff, #0000), radial-gradient(2px 2px at 45% 8%, #fff, #0000), radial-gradient(3px 3px at 6% 52%, #fff, #0000);
+    --corners: none;
   }
-
-  /* ================= DARK MODE: COOL SLEEK DARK (Jeo Ong) ================= */
   [data-theme="dark"] {
-    --bg: #0b111a;
-    --bg-pattern: radial-gradient(circle at 80% 20%, #16263b 0%, #091019 60%, #05080d 100%);
-    --bg-img: url('Assets/Jeo.png');
-    --card: rgba(10, 22, 36, 0.94);
-    --card-border: #00e5ff;
-    --card-outer-glow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 229, 255, 0.18), 0 0 0 1px #00e5ff;
-    --text: #e2f1ff;
-    --muted: #6892b8;
-    --line: #1e3a56;
-    --btn: linear-gradient(180deg, #162a40 0%, #0d1a29 100%);
-    --btn-fn: linear-gradient(180deg, #1b3552 0%, #102133 100%);
-    --btn-shadow: 0 4px 0 #060d14, 0 0 10px rgba(0, 229, 255, 0.14);
-    --btn-active-shadow: 0 1px 0 #060d14, 0 0 16px rgba(0, 229, 255, 0.45);
-    --btn-radius: 8px;
-    --accent: linear-gradient(180deg, #00e5ff 0%, #0099cc 100%);
-    --accent-solid: #00e5ff;
-    --accent-shadow: 0 4px 0 #005f80, 0 0 16px rgba(0, 229, 255, 0.5);
-    --accent2: linear-gradient(180deg, #3a7bd5 0%, #1e4d91 100%);
-    --on-accent: #04101c;
-    --err: #ff5252;
-    --font-main: 'JetBrains Mono', Consolas, monospace;
-    --font-title: 'Orbitron', 'JetBrains Mono', sans-serif;
-    --input-bg: #07121e;
-    --ans-bg: #0c1d30;
-    --badge-bg: linear-gradient(90deg, #0088cc, #00e5ff);
-    --badge-text: #04101c;
+    --font: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+    --head: Impact, "Haettenschweiler", "Arial Narrow Bold", "Arial Black", sans-serif;
+    --upper: uppercase; --ital: italic;
+    --bg1: #06080c; --bg2: #121a28;
+    --card-bg: repeating-linear-gradient(45deg, #151a22 0 5px, #181e27 5px 10px);
+    --ring-bg: linear-gradient(135deg, #c9d1dc, #394150 35%, #aeb7c4 55%, #2f3643 80%, #c9d1dc);
+    --text: #e9eef7; --muted: #8c97ab; --line: #2b3343;
+    --accent: #6cb4ff; --accent-ink: #06101c; --accent-soft: #1b2a41; --glow: rgba(108, 180, 255, .55);
+    --display: #0b0e13;
+    --display-bg: repeating-linear-gradient(0deg, rgba(255, 255, 255, .035) 0 1px, #0000 1px 3px), linear-gradient(180deg, #07090d, #101620);
+    --panel: #11151c;
+    --key: linear-gradient(180deg, #3d4554, #232935); --num: linear-gradient(180deg, #2d3441, #1b2029); --op: linear-gradient(180deg, #36557f, #1f3558);
+    --ctl-bg: linear-gradient(180deg, #2c3a3a, #192222); --ctl: #6fcfc3;
+    --eq-bg: linear-gradient(180deg, #ff6a5e, #c4161c);
+    --kb: #4b566a; --ke: #05070a; --kshine: rgba(255, 255, 255, .14);
+    --r: 10px; --rc: 14px;
+    --tag-bg: linear-gradient(90deg, #c4161c, #ff5a4f);
+    --err: #ff8f86;
+    --shadow: 0 20px 60px rgba(0, 0, 0, .7), 0 0 40px rgba(108, 180, 255, .12);
+    --stage: linear-gradient(104deg, #0000 38%, rgba(108, 180, 255, .14) 48%, #0000 58%), linear-gradient(76deg, #0000 42%, rgba(255, 90, 79, .10) 52%, #0000 62%), radial-gradient(ellipse at 50% 0%, rgba(108, 180, 255, .12), #0000 60%);
+    --corners: radial-gradient(circle, #9aa4b2 0 2.5px, #0000 3px) left top/10px 10px no-repeat, radial-gradient(circle, #9aa4b2 0 2.5px, #0000 3px) right top/10px 10px no-repeat, radial-gradient(circle, #9aa4b2 0 2.5px, #0000 3px) left bottom/10px 10px no-repeat, radial-gradient(circle, #9aa4b2 0 2.5px, #0000 3px) right bottom/10px 10px no-repeat;
   }
 
   * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  [data-theme="dark"] { color-scheme: dark; }
   body {
-    margin: 0;
-    background-color: var(--bg);
-    background-image: var(--bg-pattern);
-    color: var(--text);
-    font-family: var(--font-main);
-    min-height: 100vh;
-    padding: 20px;
-    transition: background 0.35s ease, color 0.3s ease;
-    overflow-x: hidden;
+    margin: 0; min-height: 100vh; display: flex; justify-content: center; align-items: flex-start;
+    padding: 46px 16px 28px; color: var(--text); font-family: var(--font);
+    background: linear-gradient(160deg, var(--bg1), var(--bg2)) fixed;
   }
+  body::before { content: ""; position: fixed; inset: -5%; background: var(--stage); animation: stage 9s ease-in-out infinite; pointer-events: none; }
+  @keyframes stage { 0%, 100% { opacity: .65; transform: translateX(-2%); } 50% { opacity: 1; transform: translateX(2%); } }
 
-  body::before {
-    content: "✦ ★ ♡ UNIVERSE PHOTOCARD ★ ✦";
-    position: fixed;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 0.72rem;
-    letter-spacing: 0.28em;
-    color: var(--muted);
-    opacity: 0.65;
-    pointer-events: none;
-    white-space: nowrap;
-    font-weight: 700;
-  }
-  [data-theme="dark"] body::before {
-    content: "";
-  }
-
-  .layout { display: flex; justify-content: center; align-items: flex-start; position: relative; z-index: 1; margin-top: 12px; }
-  .mascot {
-    position: fixed;
-    bottom: 0;
-    left: 12px;
-    width: min(370px, calc((100vw - 640px) / 2 - 10px));
-    aspect-ratio: 1 / 1.1;
-    background: var(--bg-img) center bottom / contain no-repeat;
-    pointer-events: none;
-    filter: drop-shadow(0 10px 24px rgba(255, 51, 153, 0.32));
-    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease, filter 0.35s ease;
-  }
-  [data-theme="dark"] .mascot {
-    left: auto;
-    right: 12px;
-    filter: drop-shadow(0 0 22px rgba(0, 229, 255, 0.25));
-  }
-  .mascot.pop {
-    transform: scale(1.07) translateY(-8px) rotate(-2deg);
-  }
-
+  /* ---------- Card ---------- */
   .card {
-    background: var(--card);
-    backdrop-filter: blur(12px);
-    width: 100%;
-    max-width: 640px;
-    min-width: 0;
-    border-radius: 32px;
-    padding: 26px;
-    box-shadow: var(--card-outer-glow);
-    border: 3px solid var(--card-border);
-    position: relative;
-    transition: all 0.35s ease;
+    position: relative; z-index: 2; width: 100%; max-width: 880px; padding: 22px;
+    border: 4px solid transparent; border-radius: var(--rc);
+    background: var(--card-bg) padding-box, var(--ring-bg) border-box; box-shadow: var(--shadow);
   }
-  .card::after {
-    content: "✨💖✨";
-    position: absolute;
-    top: -15px;
-    right: 26px;
-    background: #ffffff;
-    border: 2px solid #ff85c0;
-    border-radius: 999px;
-    padding: 2px 12px;
-    font-size: 0.82rem;
-    box-shadow: 0 4px 10px rgba(255, 77, 166, 0.25);
-    pointer-events: none;
-  }
-  [data-theme="dark"] .card {
-    border-radius: 14px;
-    border: 1px solid var(--card-border);
-    border-top: 6px solid var(--accent-solid);
-  }
-  [data-theme="dark"] .card::after {
-    display: none;
-  }
+  .card::before { content: ""; position: absolute; inset: 6px; pointer-events: none; background: var(--corners); }
+  .cap { position: absolute; top: -30px; left: 0; right: 0; text-align: center; font-size: .62rem; font-weight: 800; letter-spacing: .28em; color: var(--muted); }
+  .corner { position: absolute; top: -15px; right: 22px; padding: 2px 12px; border-radius: 999px; font-size: .78rem; font-weight: 800; background: var(--display); color: var(--accent); border: 2px solid var(--kb); }
 
-  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 8px; flex-wrap: wrap; }
-  .title-wrap { display: flex; flex-direction: column; gap: 2px; }
-  .mode-badge {
-    display: inline-block;
-    width: fit-content;
-    background: var(--badge-bg);
-    color: var(--badge-text);
-    font-size: 0.65rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    padding: 2px 9px;
-    border-radius: 999px;
-  }
-  h1 {
-    font-family: var(--font-title);
-    font-size: 1.38rem;
-    margin: 0;
-    letter-spacing: 0.03em;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    text-shadow: 0 2px 0 rgba(255, 255, 255, 0.8);
-  }
-  [data-theme="dark"] h1 {
-    font-size: 1.25rem;
-    text-shadow: none;
-  }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  header .title { flex: 1; min-width: 0; }
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #fff; background: var(--tag-bg); }
+  h1 { margin: 6px 0 0; font-family: var(--head); font-weight: 800; font-size: 1.35rem; line-height: 1.15; font-style: var(--ital); text-transform: var(--upper); }
+  [data-theme="dark"] h1 { letter-spacing: .04em; text-shadow: 2px 2px 0 #c4161c; }
+  header p { margin: 4px 0 0; font-size: .78rem; color: var(--muted); }
 
-  .header-controls {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
-  .header-controls button {
-    padding: 7px 12px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .label {
-    font-size: .74rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    color: var(--muted);
-    margin: 12px 0 5px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  #formula {
-    width: 100%;
-    font: 1.15rem 'JetBrains Mono', ui-monospace, Consolas, monospace;
-    padding: 13px 16px;
-    border-radius: 20px;
-    border: 2.5px solid var(--line);
-    background: var(--input-bg);
-    color: var(--text);
-    box-shadow: inset 0 2px 6px rgba(255, 105, 180, 0.12);
-    transition: border-color 0.2s, box-shadow 0.2s, border-radius 0.3s;
-  }
-  [data-theme="dark"] #formula {
-    border-radius: 8px;
-    box-shadow: none;
-  }
-  #formula:focus {
-    outline: none;
-    border-color: var(--accent-solid);
-    box-shadow: 0 0 0 4px rgba(255, 51, 153, 0.22);
-  }
-  [data-theme="dark"] #formula:focus {
-    box-shadow: 0 0 12px rgba(0, 229, 255, 0.35);
-  }
-
-  #answer {
-    min-height: 54px;
-    padding: 13px 16px;
-    border-radius: 20px;
-    background: var(--ans-bg);
-    border: 2.5px solid var(--line);
-    font: 1.35rem 'JetBrains Mono', ui-monospace, Consolas, monospace;
-    font-weight: 700;
-    word-break: break-all;
-    max-height: 160px;
-    overflow: auto;
-    transition: border-radius 0.3s, background 0.3s;
-  }
-  [data-theme="dark"] #answer { border-radius: 8px; }
-  #answer.err { color: var(--err); font-size: 1rem; }
-
+  /* ---------- Buttons (glossy "gummy" in light, steel "pedals" in dark) ---------- */
   button {
-    font-family: var(--font-main);
-    font-weight: 700;
-    border: 2px solid var(--line);
-    background: var(--btn);
-    color: var(--text);
-    border-radius: var(--btn-radius);
-    padding: 10px 6px;
-    cursor: pointer;
-    min-width: 0;
-    box-shadow: var(--btn-shadow);
-    position: relative;
-    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
-                box-shadow 0.12s ease,
-                border-color 0.18s ease,
-                border-radius 0.25s ease,
-                background 0.25s ease;
-    user-select: none;
+    font: inherit; cursor: pointer; color: var(--text); background: var(--key);
+    border: 2px solid var(--kb); border-radius: var(--r);
+    box-shadow: 0 4px 0 var(--ke), inset 0 2px 0 var(--kshine);
+    transition: transform .06s, box-shadow .06s, filter .15s;
   }
-  button:hover {
-    border-color: var(--accent-solid);
-    transform: translateY(-3px) scale(1.03);
-  }
-  [data-theme="dark"] button:hover {
-    box-shadow: 0 4px 0 #060d14, 0 0 15px rgba(0, 229, 255, 0.45);
-    color: #00e5ff;
-  }
-  button:active, button.pressed {
-    transform: translateY(3px) scale(0.96);
-    box-shadow: var(--btn-active-shadow);
-  }
+  button:hover { filter: brightness(1.07); }
+  button:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--ke), inset 0 2px 0 var(--kshine); }
+  button:focus-visible, .var input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  .answer-row { display: flex; gap: 8px; align-items: stretch; }
-  .answer-row #answer { flex: 1; min-width: 0; }
-  .answer-row button { font-weight: 700; padding: 0 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chips button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: .72rem; font-weight: 800; }
+  .eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 14px; }
+  .eq i { width: 3px; height: 25%; border-radius: 2px; background: var(--accent); }
+  .playing .eq i { animation: bar .55s ease-in-out infinite alternate; }
+  .eq i:nth-child(2) { animation-delay: .12s; } .eq i:nth-child(3) { animation-delay: .24s; } .eq i:nth-child(4) { animation-delay: .06s; }
+  @keyframes bar { to { height: 100%; } }
 
-  .keys { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; margin-top: 16px; }
-  .keys.fn button {
-    font-size: .86rem;
-    padding: 10px 4px;
-    white-space: nowrap;
-    background: var(--btn-fn);
+  /* ---------- Display ---------- */
+  .display { background: var(--display-bg); border: 2px solid var(--line); border-radius: calc(var(--rc) - 8px); padding: 12px 14px 14px; }
+  .lbl { display: block; font-size: .66rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  #formula {
+    width: 100%; background: var(--display); color: var(--text); border: 2px solid var(--kb); border-radius: 14px;
+    font: 1.1rem/1.4 "JetBrains Mono", ui-monospace, Consolas, monospace; padding: 10px 12px;
   }
-  .keys.pad button {
-    font-size: 1.24rem;
-    font-weight: 700;
-    padding: 14px 6px;
+  #formula::placeholder { color: var(--muted); opacity: .7; }
+  #formula:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .out { display: flex; align-items: flex-end; gap: 10px; margin-top: 12px; }
+  .out > div:first-child { flex: 1; min-width: 0; }
+  #answer {
+    min-height: 48px; max-height: 150px; overflow: auto; text-align: right; word-break: break-all;
+    font: 700 1.9rem/1.25 "JetBrains Mono", ui-monospace, Consolas, monospace; color: var(--accent); text-shadow: 0 0 12px var(--glow);
   }
+  #answer.err { font: 600 .95rem/1.4 var(--font); color: var(--err); text-align: left; text-shadow: none; }
+  #copy { flex: none; padding: 6px 14px; font-size: .8rem; font-weight: 800; }
 
+  /* ---------- Layout ---------- */
+  .main { display: grid; grid-template-columns: minmax(250px, 330px) 1fr; gap: 20px; margin-top: 16px; align-items: start; }
+  @media (max-width: 720px) { .main { grid-template-columns: 1fr; } }
+  .pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+  .pad button { height: 54px; font-family: var(--head); font-size: 1.2rem; font-weight: 800; background: var(--num); }
+  .pad button.op { background: var(--op); }
+  .pad button.ctl { background: var(--ctl-bg); color: var(--ctl); border-color: transparent; }
   #eq {
-    background: var(--accent);
-    color: var(--on-accent);
-    border-color: var(--accent-solid);
-    box-shadow: var(--accent-shadow);
-  }
-  #eq:hover { color: var(--on-accent); filter: brightness(1.08); }
-
-  #clr, #back {
-    background: var(--accent2);
-    color: #fff;
-    border-color: transparent;
-  }
-  [data-theme="dark"] #clr, [data-theme="dark"] #back {
-    border-color: #3a7bd5;
-    color: #e2f1ff;
+    grid-column: 1 / -1; height: 58px; font-size: 1.5rem; color: #fff; background: var(--eq-bg); border-color: transparent;
+    box-shadow: 0 4px 0 var(--ke), 0 0 18px var(--glow), inset 0 2px 0 var(--kshine);
   }
 
-  .group h2 {
-    font-size: .82rem;
-    color: var(--muted);
-    margin: 18px 0 8px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-  }
+  /* ---------- Tools (tabs) ---------- */
+  .tools { background: var(--panel); border: 2px solid var(--line); border-radius: calc(var(--rc) - 8px); padding: 12px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tabs button { padding: 6px 12px; font-size: .8rem; font-weight: 800; background: transparent; color: var(--muted); box-shadow: none; border-color: transparent; }
+  .tabs button:hover { color: var(--text); border-color: var(--line); }
+  .tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 0 12px var(--glow); }
+  .badge { display: inline-block; min-width: 18px; margin-left: 4px; padding: 0 5px; border-radius: 9px; background: var(--accent-ink); color: var(--accent); font-size: .72rem; line-height: 18px; }
+  .badge[hidden] { display: none; }
+  .peek { margin: 12px 2px; min-height: 2.6em; font-size: .82rem; line-height: 1.5; color: var(--muted); overflow-wrap: anywhere; }
+  .peek b { color: var(--accent); font-family: ui-monospace, Consolas, monospace; font-weight: 600; }
+  .row { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 9px; }
+  .row button { height: 46px; font-size: 1rem; font-weight: 700; }
+  .vars { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .var { display: flex; align-items: center; gap: 6px; background: var(--display); border: 2px solid var(--line); border-radius: 14px; padding: 4px; }
+  .var button { min-width: 36px; height: 34px; padding: 0; font-family: ui-monospace, monospace; font-weight: 800; background: var(--op); }
+  .var input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--text); font: 1rem ui-monospace, Consolas, monospace; padding: 6px 4px; }
+  .var input:focus { outline: none; }
+  .var:focus-within { border-color: var(--accent); }
+  .hint { font-size: .78rem; color: var(--muted); margin-top: 16px; line-height: 1.6; padding: 10px 12px; border: 2px dashed var(--line); border-radius: 14px; }
+  code { background: var(--accent-soft); color: var(--accent); padding: 1px 5px; border-radius: 5px; font-size: .95em; }
 
-  .vars { display: grid; grid-template-columns: repeat(auto-fill, minmax(125px, 1fr)); gap: 9px; }
-  .vars label { display: flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-  .vars label button { width: 42px; flex: 0 0 42px; padding: 8px 0; }
-  .vars input {
-    flex: 1;
-    min-width: 0;
-    padding: 8px 10px;
-    border-radius: 999px;
-    border: 2px solid var(--line);
-    background: var(--input-bg);
-    color: var(--text);
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 600;
-    text-align: center;
-    transition: border-radius 0.3s, border-color 0.2s;
+  /* ---------- Mascot ---------- */
+  .mascot-box { position: relative; }
+  .mascot {
+    display: block; width: 100%; padding: 0; background: none; border: 0; box-shadow: none; border-radius: 16px;
+    animation: bob 3.6s ease-in-out infinite;
   }
-  [data-theme="dark"] .vars input { border-radius: 8px; }
-  .vars input:focus { outline: none; border-color: var(--accent-solid); }
+  .mascot:active { transform: none; box-shadow: none; }
+  .mascot img { display: block; width: 100%; height: auto; transition: transform .2s; }
+  .mascot:hover img { transform: scale(1.04) rotate(-1.5deg); }
+  .mascot img:not([src]) { visibility: hidden; }
 
-  .hint {
-    font-size: .76rem;
-    color: var(--muted);
-    margin-top: 18px;
-    line-height: 1.55;
-    background: rgba(255, 255, 255, 0.55);
-    border: 1.5px dashed #ff9ec7;
-    padding: 10px 14px;
-    border-radius: 18px;
+  /* Big sticker beside the card (wide screens) */
+  .side {
+    display: none; position: fixed; bottom: 6px; z-index: 1;
+    width: clamp(190px, calc((100vw - 880px) / 2 + 70px), 340px);
   }
-  [data-theme="dark"] .hint {
-    background: rgba(0, 229, 255, 0.05);
-    border: none;
-    border-left: 3px solid var(--accent-solid);
-    border-radius: 8px;
-  }
+  .side img { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .22)); }
+  [data-theme="light"] .side { left: 8px; }
+  [data-theme="dark"] .side { right: 8px; }
+  @media (min-width: 1180px) { .side { display: block; } .head { display: none; } }
 
+  /* Small sticker in the header (narrow screens) */
+  .head { width: 68px; flex: none; }
+
+  .bubble {
+    position: absolute; z-index: 5; width: max-content; max-width: 210px; pointer-events: none;
+    padding: 8px 12px; border-radius: 14px; font-size: .85rem; line-height: 1.35; text-align: center;
+    background: var(--display); color: var(--text); border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(0,0,0,.14);
+    opacity: 0; transition: opacity .2s, transform .2s;
+  }
+  .bubble::after {
+    content: ""; position: absolute; width: 10px; height: 10px; background: var(--display);
+    border: 1px solid var(--line); transform: rotate(45deg);
+  }
+  .side .bubble { left: 50%; bottom: 100%; transform: translate(-50%, 8px) scale(.9); }
+  .side .bubble.show { opacity: 1; transform: translate(-50%, -4px) scale(1); }
+  .side .bubble::after { bottom: -6px; left: calc(50% - 5px); border-width: 0 1px 1px 0; }
+  .head .bubble { left: 0; top: 100%; transform: translateY(-6px) scale(.9); transform-origin: top left; }
+  .head .bubble.show { opacity: 1; transform: translateY(8px) scale(1); }
+  .head .bubble::after { top: -6px; left: 24px; border-width: 1px 0 0 1px; }
+
+  .hearts { position: absolute; inset: 0; pointer-events: none; }
+  .hearts span { position: absolute; bottom: 45%; color: var(--accent); font-size: 1.2rem; opacity: 0; animation: floatup 1.2s ease-out forwards; }
+
+  .pop   { animation: pop .45s ease-out; }
+  .hop   { animation: hop .7s ease-out; }
+  .wobble{ animation: wobble .5s ease-in-out; }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  @keyframes pop { 0% { transform: scale(.82); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+  @keyframes hop { 0%, 100% { transform: translateY(0); } 30% { transform: translateY(-34px) rotate(-3deg); } 60% { transform: translateY(0); } 78% { transform: translateY(-10px); } }
+  @keyframes wobble { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+  @keyframes floatup {
+    0% { opacity: 0; transform: translate(0, 0) scale(.6); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translate(var(--dx), -130px) scale(1.2); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
   .audio-toast {
-    position: fixed;
-    bottom: 18px;
-    right: 18px;
-    background: var(--card);
-    color: var(--text);
-    border: 2px solid var(--card-border);
-    padding: 9px 16px;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-    opacity: 0;
-    transform: translateY(10px);
-    pointer-events: none;
-    transition: opacity 0.25s ease, transform 0.25s ease;
-    z-index: 10;
+    position: fixed; bottom: 18px; right: 18px; z-index: 10; padding: 9px 16px; border-radius: 999px;
+    background: var(--display); color: var(--text); border: 2px solid var(--kb);
+    font-size: .8rem; font-weight: 700; box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+    opacity: 0; transform: translateY(10px); pointer-events: none; transition: opacity .25s, transform .25s;
   }
-  .audio-toast.show {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  @media (max-width: 1000px) {
-    .mascot { display: none; }
-  }
-  @media (max-width: 480px) {
-    body { padding: 10px; }
-    .card { padding: 14px; }
-    .keys.fn button { font-size: .75rem; }
-    .keys.pad button { padding: 12px 4px; }
-    .vars { grid-template-columns: repeat(2, 1fr); }
-  }
+  .audio-toast.show { opacity: 1; transform: none; }
 </style>
 </head>
 <body>
-<div class="layout">
-  <div class="mascot" id="mascot" aria-hidden="true"></div>
 
-  <div class="card">
-    <header>
-      <div class="title-wrap">
-        <span class="mode-badge" id="mode-badge">💖 K-POP CENTER CONCEPT • GEHLEE</span>
-        <h1 id="app-title">🎀 DSA Idol Calculator ✨</h1>
+<!-- Big sticker, wide screens -->
+<div class="mascot-box side">
+  <div class="bubble" role="status" aria-live="polite"></div>
+  <button class="mascot" type="button" title="Click me!"><img alt=""></button>
+  <div class="hearts"></div>
+</div>
+
+<div class="card">
+  <div class="cap" data-l="✦ ★ ♡ UNIVERSE PHOTOCARD ♡ ★ ✦" data-d="⚡ ALL ACCESS · WORLD TOUR ⚡">✦ ★ ♡ UNIVERSE PHOTOCARD ♡ ★ ✦</div>
+  <div class="corner" data-l="✨💗✨" data-d="🤘 LIVE">✨💗✨</div>
+
+  <header>
+    <!-- Small sticker, narrow screens -->
+    <div class="mascot-box head">
+      <button class="mascot" type="button" title="Click me!"><img alt=""></button>
+      <div class="bubble" role="status" aria-live="polite"></div>
+      <div class="hearts"></div>
+    </div>
+    <div class="title">
+      <span class="tag" data-l="💖 K-pop center concept • Gehlee" data-d="🎸 Rockstar headliner • Jeo Ong">💖 K-pop center concept • Gehlee</span>
+      <h1 data-l="🎀 DSA Idol Calculator ✨" data-d="DSA Rockstar Calculator 🎸">🎀 DSA Idol Calculator ✨</h1>
+      <p data-l="Sums, products, factorials, logs and variables. Stage ready!" data-d="Sums, products, factorials, logs and variables. Turn it up.">Sums, products, factorials, logs and variables. Stage ready!</p>
+    </div>
+  </header>
+
+  <div class="chips">
+    <button id="bgm" type="button" title="Toggle background music"><span class="eq"><i></i><i></i><i></i><i></i></span><span id="bgmt">BGM: OFF</span></button>
+    <button id="track" type="button" title="Next track">⏭ Track 1/3</button>
+    <button id="sfx" type="button" title="Toggle button sounds">🔊 SFX: ON</button>
+    <button id="theme" type="button" title="Switch character and theme">💖 Gehlee</button>
+  </div>
+
+  <div class="display">
+    <label class="lbl" for="formula" data-l="💗 Formula input" data-d="Formula input">💗 Formula input</label>
+    <input id="formula" type="text" autocomplete="off" spellcheck="false" placeholder="Type or tap buttons, e.g. Σ(i=1 to 5) i" autofocus>
+    <div class="out">
+      <div>
+        <span class="lbl" data-l="💗 Stage result" data-d="Amp output">💗 Stage result</span>
+        <div id="answer" aria-live="polite">&nbsp;</div>
       </div>
-      <div class="header-controls">
-        <button id="bgm-btn" type="button" title="Toggle Background Music">🎵 BGM: ON</button>
-        <button id="next-bgm-btn" type="button" title="Skip to Next Song (Track 1/3)">⏭️ Track 1/3</button>
-        <button id="sfx-btn" type="button" title="Toggle Sound Effects">🔊 SFX: ON</button>
-        <button id="theme" type="button" title="Toggle Gehlee (Light) / Jeo Ong (Dark) mode">💖 Gehlee</button>
-      </div>
-    </header>
-
-    <div class="label" id="formula-label">✨ Formula Input</div>
-    <input id="formula" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. Σ(i=1 to 5) i" autofocus>
-
-    <div class="label" id="answer-label">💖 Stage Result</div>
-    <div class="answer-row">
-      <div id="answer">&nbsp;</div>
       <button id="copy" type="button">Copy</button>
     </div>
+  </div>
 
-    <div class="keys fn">
-      <?php foreach ($fnKeys as [$label, $insert]): ?>
-        <button type="button" class="calc-key fn-key" data-ins="<?= $h($insert) ?>"><?= $h($label) ?></button>
+  <div class="main">
+    <div class="pad">
+      <?php foreach ($pad as $b):
+        [$label, $insert] = $b; $cls = $b[2] ?? ''; $id = $b[3] ?? ''; ?>
+        <button type="button"
+                <?= $id ? 'id="' . $h($id) . '"' : '' ?>
+                <?= $cls ? 'class="' . $h($cls) . '"' : '' ?>
+                <?= $insert !== null ? 'data-ins="' . $h($insert) . '"' : '' ?>><?= $h($label) ?></button>
       <?php endforeach; ?>
+      <button id="eq" type="button">=</button>
     </div>
 
-    <div class="group">
-      <h2 id="vars-title">🌸 Variables (assign a number, then use the letter in your formula)</h2>
-      <div class="vars">
-        <?php foreach ($variables as $v): ?>
-          <label><button type="button" class="calc-key var-key" data-ins="<?= $h($v) ?>"><?= $h($v) ?></button>
-            <input type="text" inputmode="decimal" data-var="<?= $h($v) ?>" placeholder="0"></label>
-        <?php endforeach; ?>
+    <div class="tools">
+      <div class="tabs" role="tablist" aria-label="More functions">
+        <?php $first = true; foreach ($tabs as $id => [$title]): ?>
+          <button type="button" role="tab" id="tab-<?= $h($id) ?>" data-tab="<?= $h($id) ?>"
+                  aria-controls="panel-<?= $h($id) ?>" aria-selected="<?= $first ? 'true' : 'false' ?>"
+                  tabindex="<?= $first ? 0 : -1 ?>"><?= $h($title) ?></button>
+        <?php $first = false; endforeach; ?>
+        <button type="button" role="tab" id="tab-vars" data-tab="vars" aria-controls="panel-vars"
+                aria-selected="false" tabindex="-1">Variables<span class="badge" id="vbadge" hidden>0</span></button>
+      </div>
+
+      <p class="peek" id="peek"></p>
+
+      <?php $first = true; foreach ($tabs as $id => [, , $buttons]): ?>
+        <div role="tabpanel" id="panel-<?= $h($id) ?>" data-panel="<?= $h($id) ?>" aria-labelledby="tab-<?= $h($id) ?>" <?= $first ? '' : 'hidden' ?>>
+          <div class="row">
+            <?php foreach ($buttons as [$label, $insert]): ?>
+              <button type="button" data-ins="<?= $h($insert) ?>"><?= $h($label) ?></button>
+            <?php endforeach; ?>
+          </div>
+        </div>
+      <?php $first = false; endforeach; ?>
+
+      <div role="tabpanel" id="panel-vars" data-panel="vars" aria-labelledby="tab-vars" hidden>
+        <div class="vars">
+          <?php foreach ($variables as $v): ?>
+            <div class="var">
+              <button type="button" data-ins="<?= $h($v) ?>"><?= $h($v) ?></button>
+              <input type="text" inputmode="decimal" data-var="<?= $h($v) ?>" placeholder="0" aria-label="Value of <?= $h($v) ?>">
+            </div>
+          <?php endforeach; ?>
+        </div>
       </div>
     </div>
+  </div>
 
-    <div class="keys pad">
-      <?php foreach ($padKeys as [$label, $insert, $id]): ?>
-        <button type="button" class="calc-key pad-key"<?= $id ? ' id="' . $h($id) . '"' : '' ?><?= $insert !== null ? ' data-ins="' . $h($insert) . '"' : '' ?>><?= $h($label) ?></button>
-      <?php endforeach; ?>
-    </div>
-
-    <div class="hint">
-      Use <b>to</b> for ranges: <code>Σ(i=1 to 5) i</code>. Implicit multiplication works: <code>xy</code>, <code>2x</code>, <code>Cx</code>.
-      Use parentheses for longer bodies: <code>Σ(i=1 to 4) (i^2+1)</code>. Press <b>Enter</b> to calculate.
-    </div>
+  <div class="hint">
+    Press <b>Enter</b> to calculate. Implicit multiplication works: <code>2x</code>, <code>xy</code>, <code>Cx</code>.
+    For longer Σ/Π bodies use brackets: <code>Σ(i=1 to 4) (i^2+1)</code>.
   </div>
 </div>
 
@@ -501,25 +393,141 @@ $h = fn($s) => htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 <audio id="jeo-voice-3" src="Assets/Audio/Jeo/voice3.mp3" preload="auto"></audio>
 
 <script>
-const f = document.getElementById('formula'), ans = document.getElementById('answer');
-const mascot = document.getElementById('mascot');
-const appTitle = document.getElementById('app-title');
-const modeBadge = document.getElementById('mode-badge');
-const formulaLabel = document.getElementById('formula-label');
-const answerLabel = document.getElementById('answer-label');
-const varsTitle = document.getElementById('vars-title');
-const themeBtn = document.getElementById('theme');
-const bgmBtn = document.getElementById('bgm-btn');
-const nextBgmBtn = document.getElementById('next-bgm-btn');
-const sfxBtn = document.getElementById('sfx-btn');
-const toastEl = document.getElementById('audio-toast');
+const ART = <?= json_encode($art, JSON_UNESCAPED_SLASHES) ?>;
+const HINTS = <?= json_encode($hints, JSON_UNESCAPED_UNICODE) ?>;
 
-/* ================= MULTI-SONG PLAYLIST & AUDIO ENGINE ================= */
+const f = document.getElementById('formula'), ans = document.getElementById('answer');
+const theme = () => document.documentElement.dataset.theme;
+const pick = a => a[Math.floor(Math.random() * a.length)];
+
+/* ---------- Formula entry ---------- */
+function insert(t) {
+  f.setRangeText(t, f.selectionStart, f.selectionEnd, 'end');
+  f.focus();
+}
+document.querySelectorAll('[data-ins]').forEach(b => b.addEventListener('click', () => insert(b.dataset.ins)));
+
+/* ---------- Tabs ---------- */
+const tabs = [...document.querySelectorAll('[role=tab]')];
+const panels = [...document.querySelectorAll('[role=tabpanel]')];
+const peek = document.getElementById('peek');
+let current = 'basic';
+function showTab(id, focus) {
+  current = id;
+  tabs.forEach(t => { const on = t.dataset.tab === id; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; if (on && focus) t.focus(); });
+  panels.forEach(p => p.hidden = p.dataset.panel !== id);
+  peek.textContent = HINTS[id];
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => showTab(t.dataset.tab));
+  t.addEventListener('keydown', e => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (d) { e.preventDefault(); showTab(tabs[(i + d + tabs.length) % tabs.length].dataset.tab, true); }
+  });
+});
+// Show exactly what a button will insert while hovering / focusing it
+const showInsert = e => {
+  const b = e.target.closest('.tools [data-ins]');
+  if (!b) return;
+  peek.textContent = 'Inserts: ';
+  const bold = document.createElement('b'); bold.textContent = b.dataset.ins.trim(); peek.append(bold);
+};
+const resetPeek = () => { peek.textContent = HINTS[current]; };
+const tools = document.querySelector('.tools');
+tools.addEventListener('mouseover', showInsert); tools.addEventListener('focusin', showInsert);
+tools.addEventListener('mouseout', resetPeek);   tools.addEventListener('focusout', resetPeek);
+showTab('basic');
+
+// Badge on the Variables tab = how many variables have a value
+const badge = document.getElementById('vbadge');
+const varInputs = [...document.querySelectorAll('[data-var]')];
+function updateBadge() {
+  const n = varInputs.filter(i => i.value.trim() !== '').length;
+  badge.textContent = n; badge.hidden = n === 0;
+}
+varInputs.forEach(i => i.addEventListener('input', updateBadge));
+
+/* ---------- Mascot ---------- */
+const boxes = [...document.querySelectorAll('.mascot-box')];
+const LINES = {
+  light: {
+    hi:    ['Hiii! Ready when you are.', 'Hiii! What are we solving?'],
+    win:   ['Got it!', 'Nailed it!', 'Easy peasy!'],
+    oops:  ['Nom nom… that one is hard to digest.', 'Nom nom… check that formula?'],
+    poke:  ['Hehe, that tickles!', 'Need a hand?', 'Peace ✌', 'Hiii!'],
+    snack: ['Snack time… nom nom.', 'Still here, just snacking.'],
+    swap:  ['Gehlee is on duty!']
+  },
+  dark: {
+    hi:    ['Hiii! Let’s crunch some numbers.', 'Hey! What are we solving?'],
+    win:   ['Boom. Solved.', 'Clean.', 'Easy.'],
+    oops:  ['Nom nom… that one didn’t digest.', 'Nom nom… check that formula?'],
+    poke:  ['Hey, careful!', 'Need a hand?', 'Peace ✌', 'Yo!'],
+    snack: ['Snack break… nom nom.', 'Still here, just snacking.'],
+    swap:  ['Jeo is on duty.']
+  }
+};
+// preload every pose so swaps never flicker
+Object.values(ART).forEach(s => ['idle', 'hi', 'jump', 'nom'].forEach(k => { new Image().src = s[k]; }));
+
+function play(el, cls) {
+  el.classList.remove('pop', 'hop', 'wobble');
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
+function hearts(n = 6) {
+  boxes.forEach(box => {
+    const wrap = box.querySelector('.hearts');
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement('span');
+      s.textContent = pick(['♥', '♡', '✦']);
+      s.style.left = (30 + Math.random() * 40) + '%';
+      s.style.setProperty('--dx', (Math.random() * 120 - 60) + 'px');
+      s.style.animationDelay = (i * 70) + 'ms';
+      wrap.appendChild(s);
+      setTimeout(() => s.remove(), 1500);
+    }
+  });
+}
+let bubbleT, backT, idleT, snacking = false;
+function setPose(pose, text, anim, { hold = 2600, stay = false } = {}) {
+  const set = ART[theme()];
+  boxes.forEach(box => {
+    const img = box.querySelector('img'), bub = box.querySelector('.bubble');
+    img.src = set[pose];
+    box.querySelector('.mascot').setAttribute('aria-label', set.name + ' the mascot. Click to play.');
+    if (anim) play(img, anim);
+    if (text) { bub.textContent = text; bub.classList.add('show'); }
+  });
+  clearTimeout(bubbleT); clearTimeout(backT);
+  if (text) bubbleT = setTimeout(() => boxes.forEach(b => b.querySelector('.bubble').classList.remove('show')), hold);
+  if (pose !== 'idle' && !stay) backT = setTimeout(() => setPose('idle'), hold + 300);
+  snacking = stay && pose === 'nom';
+}
+// Click the sticker to cycle poses
+const order = ['hi', 'jump', 'nom']; let pokes = 0;
+boxes.forEach(box => box.querySelector('.mascot').addEventListener('click', () => {
+  const pose = order[pokes++ % order.length];
+  setPose(pose, pick(LINES[theme()].poke), pose === 'jump' ? 'hop' : 'pop');
+  hearts();
+}));
+// If you leave it alone for a while, it grabs a snack
+function resetIdle() {
+  clearTimeout(idleT);
+  if (snacking) setPose('idle');
+  idleT = setTimeout(() => setPose('nom', pick(LINES[theme()].snack), 'pop', { hold: 4000, stay: true }), 30000);
+}
+['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, resetIdle));
+resetIdle();
+setPose('hi', pick(LINES[theme()].hi), 'pop', { hold: 3200 });
+
+/* ================= AUDIO: your playlists, click sound and voice lines ================= */
+const $ = id => document.getElementById(id);
+const dark = () => theme() === 'dark';
+const bgmBtn = $('bgm'), nextBgmBtn = $('track'), sfxBtn = $('sfx'), toastEl = $('audio-toast');
 let audioCtx = null;
 let bgmEnabled = true;
 let sfxEnabled = true;
-let bgmInterval = null;
-let bgmStep = 0;
 
 const playlists = {
   light: ['bgm-gehlee-1', 'bgm-gehlee-2', 'bgm-gehlee-3'],
@@ -527,19 +535,6 @@ const playlists = {
 };
 let trackIndex = { light: 0, dark: 0 };
 let voiceIndex = { light: 0, dark: 0 };
-
-const synthSongs = {
-  light: [
-    { notes: [523.25, 659.25, 783.99, 1046.50, 783.99, 659.25, 880.00, 783.99], tempo: 240, wave: 'sine' },
-    { notes: [587.33, 739.99, 880.00, 1174.66, 987.77, 880.00, 739.99, 880.00], tempo: 220, wave: 'sine' },
-    { notes: [659.25, 783.99, 987.77, 1318.51, 987.77, 783.99, 880.00, 1046.50], tempo: 250, wave: 'sine' }
-  ],
-  dark: [
-    { notes: [220.00, 261.63, 329.63, 392.00, 196.00, 246.94, 293.66, 329.63], tempo: 370, wave: 'triangle' },
-    { notes: [164.81, 196.00, 246.94, 329.63, 293.66, 246.94, 196.00, 220.00], tempo: 320, wave: 'triangle' },
-    { notes: [130.81, 196.00, 261.63, 311.13, 293.66, 261.63, 196.00, 174.61], tempo: 400, wave: 'triangle' }
-  ]
-};
 
 function getAudioCtx() {
   if (!audioCtx) {
@@ -661,7 +656,6 @@ function playThemeCharacterSound(targetTheme) {
 }
 
 function stopAllBgm() {
-  if (bgmInterval) { clearInterval(bgmInterval); bgmInterval = null; }
   [...playlists.light, ...playlists.dark].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -671,6 +665,12 @@ function stopAllBgm() {
   });
 }
 
+function chips() {
+  $('bgmt').textContent = 'BGM: ' + (bgmEnabled ? 'ON' : 'OFF');
+  updateTrackButtonLabel();
+  sfxBtn.textContent = sfxEnabled ? '🔊 SFX: ON' : '🔈 SFX: OFF';
+  $('theme').textContent = dark() ? '🎸 Jeo Ong' : '💖 Gehlee';
+}
 function updateTrackButtonLabel() {
   const mode = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
   const num = (trackIndex[mode] % 3) + 1;
@@ -680,6 +680,8 @@ function updateTrackButtonLabel() {
 [...playlists.light, ...playlists.dark].forEach(id => {
   const el = document.getElementById(id);
   if (el) {
+    el.addEventListener('playing', () => bgmBtn.classList.add('playing'));
+    el.addEventListener('pause', () => bgmBtn.classList.remove('playing'));
     el.addEventListener('ended', () => {
       const mode = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
       trackIndex[mode] = (trackIndex[mode] + 1) % 3;
@@ -710,37 +712,8 @@ function startBgm() {
     }
   };
 
-  tryPlayTrack(currentIdx, () => {
-    if (currentIdx !== 0) {
-      tryPlayTrack(0, () => startSynthBgm(mode, currentIdx));
-    } else {
-      startSynthBgm(mode, currentIdx);
-    }
-  });
-}
-
-function startSynthBgm(mode, songIdx) {
-  const ctx = getAudioCtx();
-  if (!ctx) return;
-  const song = synthSongs[mode][songIdx % 3];
-  bgmStep = 0;
-
-  bgmInterval = setInterval(() => {
-    if (!bgmEnabled || document.hidden) return;
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = song.wave;
-    const freq = song.notes[bgmStep % song.notes.length];
-    bgmStep++;
-    osc.frequency.setValueAtTime(freq, now);
-    gain.gain.setValueAtTime(0.035, now);
-    gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.3);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.32);
-  }, song.tempo);
+  // If a song file is missing or blocked, try track 1; otherwise stay silent (no built-in music)
+  tryPlayTrack(currentIdx, () => { if (currentIdx !== 0) tryPlayTrack(0, () => {}); });
 }
 
 let audioInitialized = false;
@@ -755,7 +728,7 @@ document.addEventListener('keydown', initAudioOnFirstGesture, { once: true });
 
 bgmBtn.addEventListener('click', () => {
   bgmEnabled = !bgmEnabled;
-  bgmBtn.textContent = bgmEnabled ? '🎵 BGM: ON' : '🔇 BGM: OFF';
+  chips();
   playClickSound();
   if (bgmEnabled) startBgm(); else stopAllBgm();
 });
@@ -772,38 +745,41 @@ nextBgmBtn.addEventListener('click', () => {
 
 sfxBtn.addEventListener('click', () => {
   sfxEnabled = !sfxEnabled;
-  sfxBtn.textContent = sfxEnabled ? '🔊 SFX: ON' : '🔈 SFX: OFF';
+  chips();
   if (sfxEnabled) playClickSound();
 });
 
-function insert(t) {
-  f.setRangeText(t, f.selectionStart, f.selectionEnd, 'end');
-  f.focus();
+function applyText() {
+  document.querySelectorAll('[data-l]').forEach(e => { e.textContent = dark() ? e.dataset.d : e.dataset.l; });
 }
-document.querySelectorAll('[data-ins]').forEach(b => b.addEventListener('click', () => insert(b.dataset.ins)));
 
-document.querySelectorAll('.calc-key, #copy').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const type = btn.id === 'eq' ? 'eq' : (btn.id === 'clr' || btn.id === 'back' ? 'clr' : 'normal');
-    playClickSound(type);
-  });
+// Button click sound (type = eq / clr / normal), same behaviour as before
+document.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || b.matches('#bgm, #track, #sfx, #theme, .mascot')) return;
+  playClickSound(b.id === 'eq' ? 'eq' : (b.id === 'clr' || b.id === 'back' ? 'clr' : 'normal'));
 });
 
+/* ---------- Calculate ---------- */
 async function calculate() {
   const vars = {};
-  document.querySelectorAll('[data-var]').forEach(i => { if (i.value.trim() !== '') vars[i.dataset.var] = i.value.trim(); });
+  varInputs.forEach(i => { if (i.value.trim() !== '') vars[i.dataset.var] = i.value.trim(); });
   ans.className = ''; ans.textContent = '…';
+  let ok = false;
   try {
     const res = await fetch('api.php', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ expr: f.value, vars })
     });
     const data = await res.json();
-    if (data.ok) ans.textContent = data.result;
+    if (data.ok) { ans.textContent = data.result; ok = true; }
     else { ans.className = 'err'; ans.textContent = data.error; }
   } catch (e) {
     ans.className = 'err'; ans.textContent = 'Could not reach the server.';
   }
+  const L = LINES[theme()];
+  if (ok) { setPose('jump', pick(L.win), 'hop'); hearts(4); }
+  else setPose('nom', pick(L.oops), 'wobble');
 }
 
 document.getElementById('eq').addEventListener('click', calculate);
@@ -813,55 +789,30 @@ document.getElementById('back').addEventListener('click', () => {
   if (s !== e) f.setRangeText('', s, e, 'end'); else if (s > 0) f.setRangeText('', s - 1, s, 'end');
   f.focus();
 });
-document.getElementById('copy').addEventListener('click', () => {
-  if (!ans.classList.contains('err')) {
-    navigator.clipboard?.writeText(ans.textContent);
-    showToast('📋 Answer copied!');
-  }
+const copyBtn = document.getElementById('copy');
+copyBtn.addEventListener('click', () => {
+  if (ans.classList.contains('err')) return;
+  navigator.clipboard?.writeText(ans.textContent);
+  showToast('📋 Answer copied!');
+  copyBtn.textContent = 'Copied';
+  setTimeout(() => copyBtn.textContent = 'Copy', 1000);
 });
-
-themeBtn.addEventListener('click', () => {
+$('theme').addEventListener('click', () => {
   const r = document.documentElement;
-  const nextTheme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+  const nextTheme = dark() ? 'light' : 'dark';
   r.dataset.theme = nextTheme;
-
-  const currentSongNum = (trackIndex[nextTheme] % 3) + 1;
-
-  if (nextTheme === 'dark') {
-    modeBadge.textContent = '⚡ DARK MODE • JEO ONG';
-    appTitle.textContent = '⚡ DSA Advanced Calculator';
-    formulaLabel.textContent = 'Formula';
-    answerLabel.textContent = 'Answer';
-    varsTitle.textContent = 'Variables (assign a number, then use the letter in your formula)';
-    themeBtn.textContent = '⚡ Jeo Ong';
-    showToast(`⚡ Jeo Ong Mode • Track ${currentSongNum}/3`);
-  } else {
-    modeBadge.textContent = '💖 K-POP CENTER CONCEPT • GEHLEE';
-    appTitle.textContent = '🎀 DSA Idol Calculator ✨';
-    formulaLabel.textContent = '✨ Formula Input';
-    answerLabel.textContent = '💖 Stage Result';
-    varsTitle.textContent = '🌸 Variables (assign a number, then use the letter in your formula)';
-    themeBtn.textContent = '💖 Gehlee';
-    showToast(`💖 Gehlee K-Pop Idol Mode • Track ${currentSongNum}/3`);
-  }
-
-  mascot.classList.remove('pop');
-  void mascot.offsetWidth;
-  mascot.classList.add('pop');
-
+  try { localStorage.setItem('theme', nextTheme); } catch (e) {}
+  applyText(); chips();
+  const n = (trackIndex[nextTheme] % 3) + 1;
+  showToast(nextTheme === 'dark' ? `⚡ Jeo Ong Mode • Track ${n}/3` : `💖 Gehlee K-Pop Idol Mode • Track ${n}/3`);
+  setPose('hi', pick(LINES[nextTheme].swap), 'pop');
+  hearts();
   playThemeCharacterSound(nextTheme);
   if (bgmEnabled) startBgm();
-  else updateTrackButtonLabel();
-
   trackIndex[nextTheme] = (trackIndex[nextTheme] + 1) % 3;
 });
-
-f.addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    playClickSound('eq');
-    calculate();
-  }
-});
+applyText(); chips();
+f.addEventListener('keydown', e => { if (e.key === 'Enter') { playClickSound('eq'); calculate(); } });
 </script>
 </body>
 </html>
